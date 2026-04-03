@@ -1,0 +1,697 @@
+// PB Super Agent - Architecture Explorer
+// Core JavaScript Logic
+
+const UTTERANCES = [
+  {
+    id: 'u1',
+    label: 'Bed frame comparison',
+    text: '"Which bed frame is better for a master bedroom - the Toulouse or the Lorraine?"',
+    brand: 'PB', brandConf: 98,
+    intent: 'product comparison', intentConf: 95,
+    signals: [{ label: 'PB (98%)', cls: 'chip-brand' }, { label: 'product comparison', cls: 'chip-intent' }],
+    routing: { specialist: 'Discovery', subagent: 'Help me choose', confidence: 94 },
+    routingReason: 'Two named SKUs + "which is better" = product comparison. Routes to Discovery - Help Me Choose.',
+    highlightLayer: 'discovery', highlightCard: 'choose',
+    highlights: { brand: 'pb-brand', specialist: 'spec-discovery', subagent: 'choose', ui: 'pb-ui' }
+  },
+  {
+    id: 'u2',
+    label: 'Baby shower gift',
+    text: '"I need a gift for my sister\'s baby shower - budget around $150"',
+    brand: 'PBK', brandConf: 88,
+    intent: 'gift discovery', intentConf: 91,
+    signals: [{ label: 'PBK (88%)', cls: 'chip-brand-pbk' }, { label: 'gift discovery', cls: 'chip-intent' }],
+    routing: { specialist: 'Discovery', subagent: 'Gifting guide', confidence: 90 },
+    routingReason: 'Life-event signal + explicit budget. Brand resolved to PBK. Routes to Discovery - Gifting Guide.',
+    highlightLayer: 'discovery', highlightCard: 'gift',
+    highlights: { brand: 'pbk', specialist: 'spec-discovery', subagent: 'gift', ui: 'pbk-ui' }
+  },
+  {
+    id: 'u3',
+    label: 'Lost couch order',
+    text: '"Where is my order? I was supposed to get my couch last Tuesday."',
+    brand: 'PB', brandConf: 80,
+    intent: 'order anxiety', intentConf: 99,
+    signals: [{ label: 'PB (80%)', cls: 'chip-brand' }, { label: 'order anxiety', cls: 'chip-intent' }, { label: 'auth required', cls: 'chip-auth' }],
+    routing: { specialist: 'Order tracking', subagent: 'Auth - Order status', confidence: 99 },
+    routingReason: '"Where is my order" is unambiguous post-purchase signal. Auth required. Routes to Order Tracking.',
+    highlightLayer: 'ordertracking', highlightCard: 'auth',
+    highlights: { brand: 'pb-brand', specialist: 'spec-ordertracking', subagent: 'auth', ui: 'pb-ui' }
+  },
+  {
+    id: 'u4',
+    label: 'Teen room design',
+    text: '"Can you help me design my teen\'s room? She loves coastal boho."',
+    brand: 'PBT', brandConf: 92,
+    intent: 'design inspiration', intentConf: 88,
+    signals: [{ label: 'PBT (92%)', cls: 'chip-brand-pbt' }, { label: 'design exploration', cls: 'chip-intent' }],
+    routing: { specialist: 'Discovery', subagent: 'Lightweight design agent', confidence: 88 },
+    routingReason: 'Style-led open exploration. "Teen\'s room" resolves to PBT. Routes to Discovery - Design Agent.',
+    highlightLayer: 'discovery', highlightCard: 'design',
+    highlights: { brand: 'pbt', specialist: 'spec-discovery', subagent: 'design', ui: 'pbt-ui' }
+  },
+  {
+    id: 'u5',
+    label: 'Return a rug',
+    text: '"I want to return my rug - it looks nothing like it did online."',
+    brand: 'PB', brandConf: 85,
+    intent: 'return intent', intentConf: 96,
+    signals: [{ label: 'PB (85%)', cls: 'chip-brand' }, { label: 'return intent', cls: 'chip-intent' }, { label: 'auth required', cls: 'chip-auth' }],
+    routing: { specialist: 'Post-order', subagent: 'Return flow', confidence: 96 },
+    routingReason: 'Explicit return intent + emotional signal. Routes to Post-Order - Return.',
+    highlightLayer: 'postorder', highlightCard: 'return',
+    highlights: { brand: 'pb-brand', specialist: 'spec-postorder', subagent: 'return', ui: 'pb-ui' }
+  }
+];
+
+const LAYERS = [
+  { id: 'overview', label: 'Full architecture', sub: 'All layers at a glance', dot: '#888780' },
+  { id: 'orchestrator', label: 'Orchestrator', sub: 'Level 0 - intent + routing', dot: '#534AB7' },
+  { id: 'brand', label: 'Brand layer', sub: 'Persona injection - NEW', dot: '#D4537E', isNew: true },
+  { id: 'discovery', label: 'Discovery specialist', sub: 'Level 1 - pre-purchase', dot: '#1D9E75' },
+  { id: 'faq', label: 'FAQ specialist', sub: 'Level 1 - knowledge Q&A', dot: '#1D9E75' },
+  { id: 'checkout', label: 'Checkout specialist', sub: 'Level 1 - transactional', dot: '#1D9E75' },
+  { id: 'ordertracking', label: 'Order tracking', sub: 'Level 1 - post-purchase', dot: '#1D9E75' },
+  { id: 'postorder', label: 'Post-order specialist', sub: 'Level 1 - service flows', dot: '#1D9E75' },
+  { id: 'ui', label: 'UI / render layer', sub: 'Brand display rules - NEW', dot: '#378ADD', isNew: true },
+  { id: 'data', label: 'Data layer', sub: 'Shared sources + tools', dot: '#D85A30' },
+  { id: 'human', label: 'Human escalation', sub: 'Designed exit, not fallback', dot: '#BA7517' }
+];
+
+let activeLayer = 'overview';
+let activeUtt = null;
+
+let conversationTurns = [];
+let activeTurnIndex = -1;
+
+const CARD_TO_ACCORDION = {
+  'auth': 'acc-ordertracking', 'orderstatus': 'acc-ordertracking',
+  'easy': 'acc-discovery', 'choose': 'acc-discovery', 'pair': 'acc-discovery',
+  'design': 'acc-discovery', 'gift': 'acc-discovery',
+  'pip': 'acc-faq', 'policy': 'acc-faq', 'promo': 'acc-faq', 'loyalty': 'acc-faq',
+  'cart': 'acc-checkout', 'viewcart': 'acc-checkout',
+  'cancel': 'acc-postorder', 'return': 'acc-postorder',
+  'pb-brand': 'acc-brand', 'pbk': 'acc-brand', 'pbt': 'acc-brand',
+  'pb-ui': 'acc-ui', 'pbk-ui': 'acc-ui', 'pbt-ui': 'acc-ui',
+};
+
+function classifyUtterance(text) {
+  const t = text.toLowerCase();
+  let brand = 'PB', brandConf = 75, brandCls = 'chip-brand';
+  let intent = 'product browsing', intentConf = 70;
+  let specialist = 'Discovery', subagent = 'Make shopping easy', confidence = 72;
+  let reason = '';
+  let highlightLayer = 'discovery', highlightCard = 'easy';
+  let auth = '';
+  const signals = [];
+
+  if (/teen|dorm|pbt|teenager/i.test(t)) {
+    brand = 'PBT'; brandConf = 90; brandCls = 'chip-brand-pbt';
+  } else if (/baby|nursery|crib|newborn|pbk|shower/i.test(t)) {
+    brand = 'PBK'; brandConf = 88; brandCls = 'chip-brand-pbk';
+  } else { brandConf = 80; }
+
+  if (/where.*order|track.*order|when.*deliver|order.*status|where is my|hasn't arrived/i.test(t)) {
+    intent = 'order anxiety'; intentConf = 98; auth = 'auth required';
+    specialist = 'Order tracking'; subagent = 'Auth - Order status'; confidence = 97;
+    reason = '"Where is my order" pattern detected. Auth required. Routes to Order Tracking.';
+    highlightLayer = 'ordertracking'; highlightCard = 'auth';
+  } else if (/cancel/i.test(t)) {
+    intent = 'cancel intent'; intentConf = 96; auth = 'required';
+    specialist = 'Post-order'; subagent = 'Cancel'; confidence = 94;
+    reason = 'Cancellation intent detected. Routes to Post-Order - Cancel.';
+    highlightLayer = 'postorder'; highlightCard = 'cancel';
+  } else if (/return|refund|take back|not what|disappointed|broken|damaged/i.test(t)) {
+    intent = 'return/service'; intentConf = 95; auth = 'auth required';
+    specialist = 'Post-order'; subagent = 'Return flow'; confidence = 93;
+    reason = 'Return intent detected. Routes to Post-Order - Return.';
+    highlightLayer = 'postorder'; highlightCard = 'return';
+  } else if (/add.*cart|buy|order.*now|purchase|checkout|place.*order/i.test(t)) {
+    intent = 'transactional readiness'; intentConf = 93;
+    specialist = 'Checkout'; subagent = 'Add to cart'; confidence = 91;
+    reason = 'Transactional intent detected. Routes to Checkout specialist.';
+    highlightLayer = 'checkout'; highlightCard = 'cart';
+  } else if (/which|better|difference|compare|choose between|should i get/i.test(t)) {
+    intent = 'product comparison'; intentConf = 91;
+    specialist = 'Discovery'; subagent = 'Help me choose'; confidence = 89;
+    reason = 'Comparison language detected. Routes to Discovery - Help Me Choose.';
+    highlightLayer = 'discovery'; highlightCard = 'choose';
+  } else if (/pair|match|goes with|complement|rug.*sofa|sofa.*rug|complete the|look together/i.test(t)) {
+    intent = 'style pairing'; intentConf = 88;
+    specialist = 'Discovery'; subagent = 'Pair it for me'; confidence = 86;
+    reason = 'Pairing intent detected. Routes to Discovery - Pair It For Me.';
+    highlightLayer = 'discovery'; highlightCard = 'pair';
+  } else if (/gift|shower|birthday|housewarming|for someone/i.test(t)) {
+    intent = 'gift discovery'; intentConf = 92;
+    specialist = 'Discovery'; subagent = 'Gifting guide'; confidence = 90;
+    reason = 'Gift signal detected. Routes to Discovery - Gifting Guide.';
+    highlightLayer = 'discovery'; highlightCard = 'gift';
+  } else if (/registry|register|wedding.*list|baby.*list/i.test(t)) {
+    intent = 'registry building'; intentConf = 93;
+    specialist = 'Discovery'; subagent = 'Registry + room building'; confidence = 91;
+    reason = 'Registry intent detected. Routes to Discovery - Registry sub-agent.';
+    highlightLayer = 'discovery'; highlightCard = 'gift';
+  } else if (/design|decor|style|mood board|aesthetic|coastal|boho|farmhouse/i.test(t)) {
+    intent = 'design inspiration'; intentConf = 87;
+    specialist = 'Discovery'; subagent = 'Lightweight design agent'; confidence = 85;
+    reason = 'Style-led exploration detected. Routes to Discovery - Design Agent.';
+    highlightLayer = 'discovery'; highlightCard = 'design';
+  } else if (/policy|return policy|how long|ship|deliver|assembly|white.glove|monogram|how does.*work/i.test(t)) {
+    intent = 'policy/faq'; intentConf = 89;
+    specialist = 'FAQ'; subagent = 'Policy + general knowledge'; confidence = 87;
+    reason = 'Policy question detected. Routes to FAQ specialist.';
+    highlightLayer = 'faq'; highlightCard = 'policy';
+  } else if (/made of|material|fabric|care|wash|certif|safe for|jpma|weight limit|dimension|size of|measure/i.test(t)) {
+    intent = 'product knowledge'; intentConf = 90;
+    specialist = 'FAQ'; subagent = 'PIP Q&A'; confidence = 88;
+    reason = 'Product specification question. Routes to FAQ - PIP Q&A.';
+    highlightLayer = 'faq'; highlightCard = 'pip';
+  } else if (/sale|promo|discount|coupon|code|percent off/i.test(t)) {
+    intent = 'promotion inquiry'; intentConf = 91;
+    specialist = 'FAQ'; subagent = 'Promotions + offers'; confidence = 89;
+    reason = 'Promotion question detected. Routes to FAQ - Promotions.';
+    highlightLayer = 'faq'; highlightCard = 'promo';
+  } else if (/points|the key|loyalty|reward|tier/i.test(t)) {
+    intent = 'loyalty inquiry'; intentConf = 93;
+    specialist = 'FAQ'; subagent = 'The Key loyalty'; confidence = 91;
+    reason = 'Loyalty program question detected. Routes to FAQ - The Key.';
+    highlightLayer = 'faq'; highlightCard = 'loyalty';
+  } else if (/new|moving|first|just moved|setting up|starting from scratch|nursery|dorm room|first apartment/i.test(t)) {
+    intent = 'life transition'; intentConf = 82;
+    specialist = 'Discovery'; subagent = 'Make shopping easy'; confidence = 80;
+    reason = 'Life-transition language detected. Routes to Discovery - Make Shopping Easy.';
+    highlightLayer = 'discovery'; highlightCard = 'easy';
+  }
+
+  signals.push({ label: `${brand} (${brandConf}%)`, cls: brandCls });
+  signals.push({ label: intent, cls: 'chip-intent' });
+  if (auth) signals.push({ label: auth, cls: 'chip-auth' });
+
+  if (!reason) reason = `Detected "${intent}" with ${intentConf}% confidence. Routes to ${specialist} - ${subagent}.`;
+
+  // Derive highlights from brand and highlightCard
+  let highlights = {};
+  if (brand === 'PB') highlights.brand = 'pb-brand';
+  else if (brand === 'PBK') highlights.brand = 'pbk';
+  else if (brand === 'PBT') highlights.brand = 'pbt';
+  
+  if (specialist === 'Discovery') highlights.specialist = 'spec-discovery';
+  else if (specialist === 'FAQ') highlights.specialist = 'spec-faq';
+  else if (specialist === 'Checkout') highlights.specialist = 'spec-checkout';
+  else if (specialist === 'Order tracking') highlights.specialist = 'spec-ordertracking';
+  else if (specialist === 'Post-order') highlights.specialist = 'spec-postorder';
+  
+  highlights.subagent = highlightCard;
+  
+  if (brand === 'PB') highlights.ui = 'pb-ui';
+  else if (brand === 'PBK') highlights.ui = 'pbk-ui';
+  else if (brand === 'PBT') highlights.ui = 'pbt-ui';
+
+  return {
+    id: 'custom', label: 'Custom utterance', text: `"${text}"`,
+    brand, brandConf, intent, intentConf, signals,
+    routing: { specialist, subagent, confidence },
+    routingReason: reason,
+    highlightLayer, highlightCard, highlights
+  };
+}
+
+function buildExampleList() {
+  const el = document.getElementById('exampleList');
+  el.innerHTML = UTTERANCES.map(u => `
+    <button class="example-btn" id="ex-${u.id}" onclick="selectUtt('${u.id}')">
+      <div class="ex-label">${u.label}</div>
+      <div class="ex-text">${u.text}</div>
+    </button>
+  `).join('');
+}
+
+function buildLayerNav() {
+  // Layer navigation removed - single overview mode only
+  // No-op: do not populate layer navigation
+}
+
+function setLayer(id) {
+  // No-op: layer switching disabled - single overview mode only
+  // activeLayer always stays as 'overview'
+}
+
+function selectUtt(id) {
+  activeUtt = UTTERANCES.find(u => u.id === id);
+  document.querySelectorAll('.example-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`ex-${id}`).classList.add('active');
+  document.getElementById('customUtt').value = '';
+  addTurn(activeUtt);
+  renderUttState();
+  renderSessionContext(activeUtt);
+  setTimeout(() => activatePath(activeUtt), 100);
+}
+
+function analyzeCustom() {
+  const text = document.getElementById('customUtt').value.trim();
+  if (!text) return;
+  document.querySelectorAll('.example-btn').forEach(b => b.classList.remove('active'));
+  activeUtt = classifyUtterance(text);
+  addTurn(activeUtt);
+  renderUttState();
+  renderSessionContext(activeUtt);
+  setTimeout(() => activatePath(activeUtt), 100);
+}
+
+function renderUttState() {
+  if (!activeUtt) return;
+  const bar = document.getElementById('activeUttBar');
+  bar.classList.add('visible');
+  document.getElementById('activeUttText').textContent = activeUtt.text;
+  const chips = document.getElementById('signalChips');
+  chips.innerHTML = activeUtt.signals.map(s => `<span class="chip ${s.cls}">${s.label}</span>`).join('') + '<span class="chip chip-conf">~120ms routing</span>';
+  document.getElementById('routingBar').classList.add('visible');
+  document.getElementById('routingDest').textContent = `- ${activeUtt.routing.specialist} - ${activeUtt.routing.subagent} (${activeUtt.routing.confidence}% confidence)`;
+  document.getElementById('routingReason').textContent = activeUtt.routingReason;
+}
+
+function renderSessionContext(utt) {
+  const strip = document.getElementById('sessionContextStrip');
+  const text = document.getElementById('sessionContextText');
+  
+  if (!utt) {
+    strip.classList.remove('visible');
+    return;
+  }
+  
+  let context = [];
+  context.push(`Brand: ${utt.brand}`);
+  context.push(`Intent: ${utt.intent}`);
+  context.push(`Specialist: ${utt.routing.specialist}`);
+  
+  if (conversationTurns.length > 1) {
+    context.push(`Turn ${activeTurnIndex + 1} of ${conversationTurns.length}`);
+  }
+  
+  text.textContent = context.join(' • ');
+  strip.classList.add('visible');
+}
+
+function highlightCard(cardId) {
+  document.querySelectorAll('.arch-card.highlighted').forEach(c => c.classList.remove('highlighted'));
+  const card = document.getElementById(`card-${cardId}`);
+  if (card) {
+    card.classList.add('highlighted');
+    // Auto-open accordion if on overview and card is in an accordion
+    if (activeLayer === 'overview' && CARD_TO_ACCORDION[cardId]) {
+      const accordionId = CARD_TO_ACCORDION[cardId];
+      const detail = document.getElementById(accordionId);
+      if (detail && !detail.classList.contains('open')) {
+        toggleAccordion(accordionId);
+      }
+    }
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+function toggleAccordion(id) {
+  const detail = document.getElementById(id);
+  if (!detail) return;
+  const isOpen = detail.classList.contains('open');
+  detail.classList.toggle('open');
+  const card = detail.previousElementSibling;
+  if (card && card.classList.contains('arch-card')) {
+    card.classList.toggle('accordion-open');
+  }
+}
+
+function toggleToolDetail(event, id) {
+  event.stopPropagation();
+  const detail = document.getElementById(id);
+  if (!detail) return;
+  detail.classList.toggle('open');
+  const icon = event.target.closest('.tools-expand-icon');
+  if (icon) {
+    icon.classList.toggle('open');
+  }
+}
+
+function closeAllAccordions() {
+  document.querySelectorAll('.accordion-detail.open').forEach(detail => {
+    detail.classList.remove('open');
+    const card = detail.previousElementSibling;
+    if (card && card.classList.contains('arch-card')) {
+      card.classList.remove('accordion-open');
+    }
+  });
+}
+
+function renderOrchSignals(utt) {
+  // Brand detection
+  const brandVal = document.getElementById('sigval-brand');
+  if (brandVal) {
+    const brandNames = { PB: 'Pottery Barn', PBK: 'PB Kids', PBT: 'PB Teen' };
+    brandVal.textContent = brandNames[utt.brand] || utt.brand;
+    brandVal.className = 'signal-value visible brand-' + utt.brand.toLowerCase();
+    document.getElementById('sig-brand').classList.add('resolved');
+  }
+  document.querySelector('#sig-brand .signal-body').textContent =
+    `${utt.brandConf}% confidence — resolved from shopper message and domain signals.`;
+
+  // Intent classification
+  const intentVal = document.getElementById('sigval-intent');
+  if (intentVal) {
+    intentVal.textContent = utt.intent;
+    intentVal.className = 'signal-value visible';
+    document.getElementById('sig-intent').classList.add('resolved');
+  }
+  document.querySelector('#sig-intent .signal-body').textContent =
+    `${utt.intentConf}% confidence — keywords and context together determine intent.`;
+
+  // Domain category
+  const domainVal = document.getElementById('sigval-domain');
+  if (domainVal) {
+    domainVal.textContent = utt.routing.specialist + ' specialist';
+    domainVal.className = 'signal-value visible';
+    document.getElementById('sig-domain').classList.add('resolved');
+  }
+  document.querySelector('#sig-domain .signal-body').textContent =
+    `Routes to ${utt.routing.specialist}. Sub-agent: ${utt.routing.subagent}.`;
+
+  // Auth state
+  const authRequired = utt.signals.some(s => s.label === 'auth required');
+  const authVal = document.getElementById('sigval-auth');
+  if (authVal) {
+    authVal.textContent = authRequired ? 'Auth required' : 'No auth required';
+    authVal.className = 'signal-value visible';
+    document.getElementById('sig-auth').classList.add('resolved');
+  }
+  document.querySelector('#sig-auth .signal-body').textContent =
+    authRequired ? 'Identity verification needed before data is shown.' : 'Session context sufficient for this request.';
+
+  // Session context
+  const turnNum = conversationTurns.length;
+  const sessionVal = document.getElementById('sigval-session');
+  if (sessionVal) {
+    sessionVal.textContent = turnNum > 1 ? `Turn ${turnNum} — prior context loaded` : 'Fresh session — turn 1';
+    sessionVal.className = 'signal-value visible';
+    document.getElementById('sig-session').classList.add('resolved');
+  }
+  document.querySelector('#sig-session .signal-body').textContent =
+    turnNum > 1 ? `${turnNum - 1} prior turn(s) in context. Brand and intent history carried forward.` : 'No prior context. Shopper context established this turn.';
+
+  // Multi-intent
+  const multiVal = document.getElementById('sigval-multi');
+  if (multiVal) {
+    multiVal.textContent = 'Single intent detected';
+    multiVal.className = 'signal-value visible';
+    document.getElementById('sig-multi').classList.add('resolved');
+  }
+  document.querySelector('#sig-multi .signal-body').textContent =
+    'One specialist required for this utterance.';
+
+  // Guardrails
+  const grVal = document.getElementById('sigval-guardrails');
+  if (grVal) {
+    grVal.textContent = 'All guardrails applied';
+    grVal.className = 'signal-value visible';
+    document.getElementById('sig-guardrails').classList.add('resolved');
+  }
+  document.querySelector('#sig-guardrails .signal-body').textContent =
+    'Conversational engagement, data grounding, safety compliance, premature ending prevention.';
+}
+
+function activatePath(utt) {
+  // 1. Clear all previous highlights
+  document.querySelectorAll('.arch-card.highlighted, .arch-card.path-active')
+    .forEach(c => { c.classList.remove('highlighted'); c.classList.remove('path-active'); });
+  closeAllAccordions();
+
+  if (!utt.highlights) return;
+
+  // 2. Orchestrator — always path-active + open its accordion + update signals
+  const orchCard = document.getElementById('card-orch');
+  if (orchCard) {
+    orchCard.classList.add('path-active');
+    toggleAccordion('acc-orchestrator');
+  }
+  renderOrchSignals(utt);
+
+  // 3. Brand card — path-active + open acc-brand
+  const brandCard = document.getElementById(`card-${utt.highlights.brand}`);
+  if (brandCard) { 
+    brandCard.classList.add('path-active'); 
+    toggleAccordion('acc-brand'); 
+  }
+
+  // 4. Specialist card — path-active (no accordion open for the row itself)
+  const specCard = document.getElementById(`card-${utt.highlights.specialist}`);
+  if (specCard) specCard.classList.add('path-active');
+
+  // 5. Sub-agent card — highlighted (full purple) + open its specialist accordion
+  const subCard = document.getElementById(`card-${utt.highlights.subagent}`);
+  if (subCard) {
+    subCard.classList.add('highlighted');
+    const accId = CARD_TO_ACCORDION[utt.highlights.subagent];
+    if (accId) toggleAccordion(accId);
+    subCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // 6. UI card — path-active + open acc-ui
+  const uiCard = document.getElementById(`card-${utt.highlights.ui}`);
+  if (uiCard) { 
+    uiCard.classList.add('path-active'); 
+    toggleAccordion('acc-ui'); 
+  }
+}
+
+function addTurn(utt) {
+  const turn = {
+    id: conversationTurns.length + 1,
+    label: utt.label || 'Custom utterance',
+    utt: utt
+  };
+  conversationTurns.push(turn);
+  activeTurnIndex = conversationTurns.length - 1;
+  renderTurnList();
+}
+
+function selectTurn(index) {
+  activeTurnIndex = index;
+  activeUtt = conversationTurns[index].utt;
+  renderTurnList();
+  renderUttState();
+  renderSessionContext(activeUtt);
+  setTimeout(() => activatePath(activeUtt), 100);
+}
+
+function clearTurns() {
+  conversationTurns = [];
+  activeTurnIndex = -1;
+  activeUtt = null;
+  renderTurnList();
+  document.getElementById('activeUttBar').classList.remove('visible');
+  document.getElementById('routingBar').classList.remove('visible');
+  document.getElementById('turnSection').style.display = 'none';
+  document.querySelectorAll('.arch-card.highlighted').forEach(c => c.classList.remove('highlighted'));
+  document.querySelectorAll('.arch-card.path-active').forEach(c => c.classList.remove('path-active'));
+  // Reset all signal cards to their default state
+  document.querySelectorAll('.signal-card').forEach(c => c.classList.remove('resolved'));
+  document.querySelectorAll('.signal-value').forEach(v => { v.textContent = ''; v.className = 'signal-value'; });
+  closeAllAccordions();
+}
+
+function renderTurnList() {
+  const turnSection = document.getElementById('turnSection');
+  const turnList = document.getElementById('turnList');
+  
+  if (conversationTurns.length === 0) {
+    turnSection.style.display = 'none';
+    return;
+  }
+  
+  turnSection.style.display = 'block';
+  turnList.innerHTML = conversationTurns.map((turn, index) => `
+    <div class="turn-item ${index === activeTurnIndex ? 'active' : ''}" onclick="selectTurn(${index})">
+      <span class="turn-num">Turn ${turn.id}</span>
+      <span class="turn-label">${turn.label}</span>
+      ${index === activeTurnIndex ? '<span class="turn-active-marker">←</span>' : ''}
+    </div>
+  `).join('');
+}
+
+function buildLayerSections() {
+  const html = `
+    <div class="layer-section active" id="sec-overview">
+      <div class="layer-header"><div class="layer-header-dot" style="background:#888780"></div><h2>Full architecture - All Layers</h2></div>
+      <div class="overview-flow">
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">Shopper</span></div>
+          <div class="flow-layer-right">
+            <div class="arch-card"><div class="ac-tag tag-worker">Entry</div><div class="ac-title">Shopper utterance</div><div class="ac-body">Raw message - brand domain signal - session state - auth state</div></div>
+          </div>
+        </div>
+        <div class="flow-layer-connector"><span class="flow-arrow">↓</span>WITH SESSION CONTEXT</div>
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">Session Memory</span></div>
+          <div class="flow-layer-right">
+            <div class="arch-card flow-row-expandable" onclick="toggleAccordion('acc-session')"><div class="ac-tag tag-data">Persistent</div><div class="ac-title">Conversation Memory - Within Session<span class="accordion-chevron">›</span></div><div class="ac-body">Stores turn-by-turn context: brand resolved, intents explored, specialists visited, products viewed, preferences discovered</div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-session" style="border-left-color:#8B6F47">
+          <div class="card-grid">
+            <div class="arch-card"><div class="ac-tag tag-data">Stored</div><div class="ac-title">Brand Resolution</div><div class="ac-body">Which brand (PB/PBK/PBT) is the shopper on? Confidence level and how resolved?</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Stored</div><div class="ac-title">Exploration History</div><div class="ac-body">Which specialists visited? Which products viewed? Which styles explored? Which search filters applied?</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Stored</div><div class="ac-title">Intent History</div><div class="ac-body">Prior intents this session. Used to detect multi-intent or repeated intents and adjust routing or depth of engagement.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Stored</div><div class="ac-title">Preferences Discovered</div><div class="ac-body">Budget, style aesthetic, room type, product category preferences. Inferred from turns 1, 2, 3...</div></div>
+          </div>
+        </div>
+        <div class="flow-layer-connector"><span class="flow-arrow">↓</span>enters</div>
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">Level 0</span></div>
+          <div class="flow-layer-right">
+            <div class="arch-card flow-row-expandable" id="card-orch" onclick="toggleAccordion('acc-orchestrator')"><div class="ac-tag tag-orch">Orchestrator</div><div class="ac-title">Intent classifier + router - routes only, never executes<span class="accordion-chevron">›</span></div><div class="ac-body">Brand detection - intent classification - domain - auth state - session context carry</div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-orchestrator" style="border-left-color:#534AB7">
+          <div class="signals-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="signal-card" id="sig-brand"><div class="signal-num">01</div><div class="signal-title">Brand detection</div><div class="signal-value" id="sigval-brand"></div><div class="signal-body">Which domain is the shopper on? What life-stage signals exist? Ambiguity is flagged and resolved by secondary signals.</div></div>
+            <div class="signal-card" id="sig-intent"><div class="signal-num">02</div><div class="signal-title">Intent Classification</div><div class="signal-value" id="sigval-intent"></div><div class="signal-body">Pre-purchase exploration vs transactional readiness vs post-purchase service. Keywords + context together determine intent.</div></div>
+            <div class="signal-card" id="sig-domain"><div class="signal-num">03</div><div class="signal-title">Domain Category</div><div class="signal-value" id="sigval-domain"></div><div class="signal-body">Furniture, decor, gear, gifting, registry. Narrows which sub-agent is most relevant.</div></div>
+            <div class="signal-card" id="sig-auth"><div class="signal-num">04</div><div class="signal-title">Auth State Check</div><div class="signal-value" id="sigval-auth"></div><div class="signal-body">Order tracking and post-order flows require auth before data shown. Never reveals order info to unverified.</div></div>
+            <div class="signal-card" id="sig-session"><div class="signal-num">05</div><div class="signal-title">Session Context</div><div class="signal-value" id="sigval-session"></div><div class="signal-body">What has the shopper told the agent this session? Context must not be lost when switching specialists.</div></div>
+            <div class="signal-card" id="sig-multi"><div class="signal-num">06</div><div class="signal-title">Multi-Intent Detection</div><div class="signal-value" id="sigval-multi"></div><div class="signal-body">Detects when a message contains 2+ intents (e.g. "redecorate AND check my order"). Sequences or splits routing accordingly — one specialist per intent.</div></div>
+            <div class="signal-card" id="sig-guardrails"><div class="signal-num">07</div><div class="signal-title">Guardrails</div><div class="signal-value" id="sigval-guardrails"></div><div class="signal-body">Conversational engagement rules — data grounding and authenticity — safety and legal compliance — prevent premature conversation endings. Applied before every response.</div></div>
+          </div>
+        </div>
+        <div class="flow-layer-connector"><span class="flow-arrow">↓</span>injects brand token into</div>
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">Brand layer</span><span class="flow-layer-new new-pink">NEW</span></div>
+          <div class="flow-layer-right">
+            <div class="arch-card flow-row-expandable" onclick="toggleAccordion('acc-brand')" style="grid-column:1/4"><div class="ac-tag tag-brand">Brand personas</div><div class="ac-title">Persona injection - Editorial, Reassuring, Peer-adjacent<span class="accordion-chevron">›</span></div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-brand" style="border-left-color:#D4537E;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 0 6px 0">
+          <div class="arch-card dashed brand-pb" id="card-pb-brand"><div class="ac-tag tag-brand">Pottery Barn</div><div class="ac-title">PB persona</div><div class="ac-body">Editorial - aspirational - design-forward - adult decision-maker</div><div class="ac-pattern">Sophisticated tone. CTAs like "Explore the collection" not "Buy now". Large product imagery. Full design vocabulary. No safety framing needed.</div></div>
+          <div class="arch-card dashed brand-pbk" id="card-pbk"><div class="ac-tag tag-brand">PB Kids</div><div class="ac-title">PBK persona</div><div class="ac-body">Reassuring - safety-first - parent is buyer, child is user - certification-aware</div><div class="ac-pattern">Adds safety language, age-range framing, JPMA references to every response. Confident and clear. "Add to registry" CTA prominent. Certification badge visible.</div></div>
+          <div class="arch-card dashed brand-pbt" id="card-pbt"><div class="ac-tag tag-brand">PB Teen</div><div class="ac-title">PBT persona</div><div class="ac-body">Peer-adjacent - direct - trend-aware - teen co-decides, parent pays</div><div class="ac-pattern">Dual-audience awareness - speaks to teen, respects parent budget constraint. No registry framing. Room building is the primary job. Casual, visual-first.</div></div>
+        </div>
+        <div class="flow-layer-connector"><span class="flow-arrow">↓</span>brand-wrapped request routes to</div>
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">Level 1</span></div>
+          <div class="flow-layer-right">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+              <div class="arch-card flow-row-expandable" id="card-spec-discovery" onclick="toggleAccordion('acc-discovery')"><div class="ac-tag tag-spec">Specialist</div><div class="ac-title">Discovery<span class="accordion-chevron">›</span></div></div>
+              <div class="arch-card flow-row-expandable" id="card-spec-faq" onclick="toggleAccordion('acc-faq')"><div class="ac-tag tag-spec">Specialist</div><div class="ac-title">FAQ<span class="accordion-chevron">›</span></div></div>
+              <div class="arch-card flow-row-expandable" id="card-spec-checkout" onclick="toggleAccordion('acc-checkout')"><div class="ac-tag tag-spec">Specialist</div><div class="ac-title">Checkout<span class="accordion-chevron">›</span></div></div>
+              <div class="arch-card flow-row-expandable" id="card-spec-ordertracking" onclick="toggleAccordion('acc-ordertracking')"><div class="ac-tag tag-spec">Specialist</div><div class="ac-title">Order tracking<span class="accordion-chevron">›</span></div></div>
+              <div class="arch-card flow-row-expandable" id="card-spec-postorder" onclick="toggleAccordion('acc-postorder')"><div class="ac-tag tag-spec">Specialist</div><div class="ac-title">Post-order<span class="accordion-chevron">›</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-discovery" style="border-left-color:#1D9E75">
+          <div class="card-grid">
+            <div class="arch-card" id="card-easy"><div class="ac-tag tag-worker">Sub-agent A</div><div class="ac-title">Make Shopping Easy</div><div class="ac-body">Gap analysis. 5 essentials for room type, anchor piece first. Triggered by life-transition language: new home, nursery, dorm, first apartment.</div><div class="ac-pattern"><strong>Tools:</strong> Search_For_Products · Search_For_Rooms · Get Product Details · Answers with Knowledge <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-easy')">▼</span></div><div id="tools-easy" class="tools-detail"><div class="tool-item"><strong>Search_For_Products</strong><br>Input: room type, category | Output: 5 essential items | Sources: Product Catalog, Rooms</div><div class="tool-item"><strong>Search_For_Rooms</strong><br>Input: room type (nursery, dorm, etc.) | Output: Room setup collections | Sources: Rooms</div><div class="tool-item"><strong>Get Product Details</strong><br>Input: SKU | Output: Full specs + price + availability | Sources: Product Catalog</div><div class="tool-item"><strong>Answers with Knowledge</strong><br>Input: shopper question | Output: Grounded answer | Sources: All contextual</div></div></div>
+            <div class="arch-card" id="card-choose"><div class="ac-tag tag-worker">Sub-agent B</div><div class="ac-title">Help Me Choose</div><div class="ac-body">Qualifying questions - catalog filter - side-by-side comparison. Triggered when 2+ named products or specific constraint appears.</div><div class="ac-pattern"><strong>Tools:</strong> Search_For_Products · Get Product Details · Search_For_Styles · Answers with Knowledge <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-choose')">▼</span></div><div id="tools-choose" class="tools-detail"><div class="tool-item"><strong>Search_For_Products</strong><br>Input: filters, constraints, budget | Output: Array of matching SKUs | Sources: Product Catalog, Style</div><div class="tool-item"><strong>Get Product Details</strong><br>Input: SKU | Output: Full product card | Sources: Catalog, Tips</div><div class="tool-item"><strong>Search_For_Styles</strong><br>Input: style name | Output: Style family products + mood board | Sources: Style+Inspirations</div><div class="tool-item"><strong>Answers with Knowledge</strong><br>Input: comparison question | Output: Grounded comparison | Sources: Catalog specs</div></div></div>
+            <div class="arch-card" id="card-pair"><div class="ac-tag tag-worker">Sub-agent C</div><div class="ac-title">Pair It For Me</div><div class="ac-body">Style coordination. One anchor product found, build the full look. Triggered when product in cart and shopper asks about completing room.</div><div class="ac-pattern"><strong>Tools:</strong> Search_For_Products · Search_For_Styles · Get Style Details · Get Product Details <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-pair')">▼</span></div><div id="tools-pair" class="tools-detail"><div class="tool-item"><strong>Search_For_Products</strong><br>Input: style, room context | Output: Complementary products | Sources: Catalog, Style</div><div class="tool-item"><strong>Search_For_Styles</strong><br>Input: anchor product style | Output: Style family products | Sources: Style+Inspirations</div><div class="tool-item"><strong>Get Style Details</strong><br>Input: style ID | Output: Style guide + palette + mood board | Sources: Style</div><div class="tool-item"><strong>Get Product Details</strong><br>Input: SKU | Output: Full specs | Sources: Catalog</div></div></div>
+            <div class="arch-card" id="card-design"><div class="ac-tag tag-worker">Sub-agent D</div><div class="ac-title">Lightweight Design Agent</div><div class="ac-body">Style-led open exploration. Funnel: Shop the Room - mood board - human design consult. Always escalates if deeply engaged.</div><div class="ac-pattern"><strong>Tools:</strong> Search_For_Rooms · Search_For_Inspirations · Search_For_Styles · Get Room Details · Get Inspiration Details · Get Style Details · Tips and Techniques <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-design')">▼</span></div><div id="tools-design" class="tools-detail"><div class="tool-item"><strong>Search_For_Rooms</strong><br>Input: style, room type | Output: Room scene collections | Sources: Rooms</div><div class="tool-item"><strong>Search_For_Inspirations</strong><br>Input: mood/aesthetic | Output: Mood board collections | Sources: Inspirations</div><div class="tool-item"><strong>Search_For_Styles</strong><br>Input: style name | Output: Style products + mood board | Sources: Style</div><div class="tool-item"><strong>Get Room Details</strong><br>Input: room ID | Output: Full room layout + shop collection | Sources: Rooms</div><div class="tool-item"><strong>Get Inspiration Details</strong><br>Input: inspiration ID | Output: Full mood board + products | Sources: Inspirations</div><div class="tool-item"><strong>Get Style Details</strong><br>Input: style ID | Output: Style guide + palette | Sources: Style</div><div class="tool-item"><strong>Tips and Techniques</strong><br>Input: design topic | Output: Video + text guide | Sources: Videos+Tips</div></div></div>
+            <div class="arch-card" id="card-gift"><div class="ac-tag tag-worker">Sub-agent E</div><div class="ac-title">Gifting Guide + Registry</div><div class="ac-body">Occasion + budget - curated recs. Registry building room-by-room or category-by-category. PBT: no registry, pure room building.</div><div class="ac-pattern"><strong>Tools:</strong> Search for Gifts / Registry · Get Gift Details · Get Product from Registry · Add to Registry · Search_For_Products <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-gift')">▼</span></div><div id="tools-gift" class="tools-detail"><div class="tool-item"><strong>Search for Gifts / Registry</strong><br>Input: occasion, budget | Output: Gift recommendations | Sources: Occasions, Products</div><div class="tool-item"><strong>Get Gift Details</strong><br>Input: gift ID | Output: Gift description + price + occasion tag | Sources: Occasions</div><div class="tool-item"><strong>Get Product from Registry</strong><br>Input: registry ID | Output: Registry items + status | Sources: Occasions, Products</div><div class="tool-item"><strong>Add to Registry</strong><br>Input: product, category | Output: Confirmation + status | Sources: Registry</div><div class="tool-item"><strong>Search_For_Products</strong><br>Input: category, budget | Output: Products | Sources: Catalog</div></div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-faq" style="border-left-color:#1D9E75">
+          <div class="card-grid cols-2">
+            <div class="arch-card" id="card-pip"><div class="ac-tag tag-worker">Sub-agent A</div><div class="ac-title">PIP Q&A - Product Knowledge</div><div class="ac-body">Specs, materials, care instructions, compatibility, age-appropriateness. PBK adds safety certifications, weight limits.</div><div class="ac-pattern"><strong>Tools:</strong> Get Product Details · Answers with Knowledge · Tips and Techniques <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-pip')">▼</span></div><div id="tools-pip" class="tools-detail"><div class="tool-item"><strong>Get Product Details</strong><br>Input: SKU | Output: Full specs + materials + care | Sources: Catalog, Tips</div><div class="tool-item"><strong>Answers with Knowledge</strong><br>Input: product question | Output: Grounded answer | Sources: Catalog, Tips</div><div class="tool-item"><strong>Tips and Techniques</strong><br>Input: care/maintenance topic | Output: Video + text guide | Sources: Videos+Tips</div></div></div>
+            <div class="arch-card" id="card-policy"><div class="ac-tag tag-worker">Sub-agent B</div><div class="ac-title">Policy + General Knowledge</div><div class="ac-body">Return windows, shipping timelines, white-glove delivery, assembly services, monogramming. Brand-specific rules vary.</div><div class="ac-pattern"><strong>Tools:</strong> Answers with Knowledge <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-policy')">▼</span></div><div id="tools-policy" class="tools-detail"><div class="tool-item"><strong>Answers with Knowledge</strong><br>Input: policy question | Output: Grounded policy answer | Sources: Promotions+Policy, Brand Context</div></div></div>
+            <div class="arch-card" id="card-promo"><div class="ac-tag tag-worker">Sub-agent C</div><div class="ac-title">Promotions + Offers</div><div class="ac-body">Current sale events, promo codes, registry completion discounts. Always pulls live data - never serves stale info.</div><div class="ac-pattern"><strong>Tools:</strong> Answers with Knowledge <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-promo')">▼</span></div><div id="tools-promo" class="tools-detail"><div class="tool-item"><strong>Answers with Knowledge</strong><br>Input: promotion question | Output: Live promo info | Sources: Promotions+Policy data</div></div></div>
+            <div class="arch-card" id="card-loyalty"><div class="ac-tag tag-worker">Sub-agent D</div><div class="ac-title">The Key Loyalty</div><div class="ac-body">Points balance, tier status, redemption rules. Requires auth to show personal balance. General tier questions answered without auth.</div><div class="ac-pattern"><strong>Tools:</strong> Answers with Knowledge <span class="tools-expand-icon" onclick="toggleToolDetail(event, 'tools-loyalty')">▼</span></div><div id="tools-loyalty" class="tools-detail"><div class="tool-item"><strong>Answers with Knowledge</strong><br>Input: loyalty question | Output: Points/tier/redemption info | Sources: The Key Loyalty, Brand Context</div></div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-checkout" style="border-left-color:#1D9E75">
+          <div class="card-grid cols-2">
+            <div class="arch-card" id="card-cart"><div class="ac-tag tag-worker">Sub-agent A</div><div class="ac-title">Add to Cart</div><div class="ac-body">Confirm product + customization options, add to cart, surface cart link. For furniture: surface expected delivery window before confirming.</div></div>
+            <div class="arch-card" id="card-viewcart"><div class="ac-tag tag-worker">Sub-agent B</div><div class="ac-title">View Cart + Checkout Assist</div><div class="ac-body">Show cart contents, surface incomplete customization options, link to checkout. Surface relevant promotions or registry discounts at this step.</div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-ordertracking" style="border-left-color:#1D9E75">
+          <div class="card-grid cols-2">
+            <div class="arch-card" id="card-auth"><div class="ac-tag tag-worker">Sub-agent A</div><div class="ac-title">Auth + Verification</div><div class="ac-body">If not logged in: verify by zip + order number. Never reveal to unverified sessions. Escalate on failure after 2 attempts.</div></div>
+            <div class="arch-card" id="card-orderstatus"><div class="ac-tag tag-worker">Sub-agent B</div><div class="ac-title">Order Status Display</div><div class="ac-body">Order details with product images, order number, delivery date, shipping status, tracking link. For furniture: white-glove window and assembly options.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-worker">Sub-agent C</div><div class="ac-title">Error Handling</div><div class="ac-body">API failure, missing order, delivery exception. Never leave shopper without a next step - always surface phone, in-store, or human chat escalation.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-worker">Sub-agent D</div><div class="ac-title">Return/Refund Status</div><div class="ac-body">Return request status, refund timeline, tracking for items in transit back. For large furniture: pickup scheduling status.</div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-postorder" style="border-left-color:#1D9E75">
+          <div class="card-grid">
+            <div class="arch-card" id="card-cancel"><div class="ac-tag tag-worker">Sub-agent A</div><div class="ac-title">Cancel</div><div class="ac-body">Guide through cancellation before fulfillment. For custom furniture: surface cancellation window clearly. If past window: route to exchange or return flow.</div></div>
+            <div class="arch-card" id="card-return"><div class="ac-tag tag-worker">Sub-agent B</div><div class="ac-title">Return</div><div class="ac-body">Create return request, generate return label. For large furniture: schedule pickup. PB: 30-day window. Photo documentation step for damage claims.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-worker">Sub-agent C</div><div class="ac-title">Refund</div><div class="ac-body">Confirm refund to original tender, communicate timeline (3-5 business days). Surface store credit option as alternative.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-worker">Sub-agent D</div><div class="ac-title">Exchange</div><div class="ac-body">Return + place new order in one flow. For wrong size, color, or fabric. Shopper shouldn't have to do two separate transactions.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-worker">Sub-agent E</div><div class="ac-title">Warranty Claims</div><div class="ac-body">Identify item - diagnose issue - request photo - create case - route to human. Most furniture warranty claims require human judgment. Agent pre-loads the case.</div></div>
+          </div>
+        </div>
+        <div class="flow-layer-connector"><span class="flow-arrow">↓</span>reads from</div>
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">Data layer</span></div>
+          <div class="flow-layer-right">
+            <div class="arch-card flow-row-expandable" onclick="toggleAccordion('acc-data')"><div class="ac-tag tag-data">Shared</div><div class="ac-title">Product catalog - Order API - Data Cloud - The Key loyalty - Brand context - Promos + policy<span class="accordion-chevron">›</span></div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-data" style="border-left-color:#D85A30">
+          <div class="card-grid cols-2">
+            <div class="arch-card"><div class="ac-tag tag-data">Source 1</div><div class="ac-title">Product Catalog</div><div class="ac-body">All SKUs, specs, fabrics, dimensions, safety certifications, age ranges, compatibility. Filtered by brand at query time. PBK filter adds: JPMA cert, age range, weight limit fields.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 2</div><div class="ac-title">Order API</div><div class="ac-body">Order status, delivery windows, white-glove scheduling, return status, refund status. Auth-gated - only called after identity verification. Never surfaced without confirmed auth.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 3</div><div class="ac-title">Salesforce Data Cloud</div><div class="ac-body">Session context, real-time personalization signals, in-session behavior. No purchase history in current scope - all personalization is session-based.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 4</div><div class="ac-title">The Key Loyalty</div><div class="ac-body">Points balance, tier status, redemption rules, registry completion discounts. Auth-gated for personal balance. General program info available without auth.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 5</div><div class="ac-title">Brand Context Store</div><div class="ac-body">Tone, voice, and logic rules per brand. PB: editorial, aspirational. PBK: reassuring, safety-first. PBT: peer-adjacent, direct. Injected into every specialist system prompt.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 6</div><div class="ac-title">Promotions + Policy</div><div class="ac-body">Live promo data, return policy rules, shipping timelines. Always live - never served from cached or stale training data. Critical for seasonal sale events.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 7</div><div class="ac-title">Style + Inspirations</div><div class="ac-body">Curated style families (coastal, farmhouse, modern, etc.), mood board collections, aesthetic tags. Powers Search_For_Styles, Search_For_Inspirations, and Get Style Details actions.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 8</div><div class="ac-title">Occasions + Collaborations</div><div class="ac-body">Gift occasions (baby shower, wedding, housewarming), life-stage events, and brand/designer collaboration collections. Powers gifting recommendation and registry curations.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 9</div><div class="ac-title">Rooms</div><div class="ac-body">Room scene data, shop-the-room collections, room type mappings (nursery, teen bedroom, living room). Powers Search_For_Rooms and Get Room Details actions in the Design Agent.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-data">Source 10</div><div class="ac-title">Videos + Tips and Techniques</div><div class="ac-body">How-to videos, design technique guides, care instruction content. Powers the Tips and Techniques action used by FAQ and the Lightweight Design Agent.</div></div>
+          </div>
+        </div>
+        <div class="flow-layer-connector"><span class="flow-arrow">↓</span>specialist output passes to</div>
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">UI layer</span><span class="flow-layer-new new-blue">NEW</span></div>
+          <div class="flow-layer-right">
+            <div class="arch-card flow-row-expandable" onclick="toggleAccordion('acc-ui')" style="grid-column:1/4"><div class="ac-tag tag-ui">Brand display rules</div><div class="ac-title">Editorial, Safety-First, Compact layouts<span class="accordion-chevron">›</span></div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-ui" style="border-left-color:#378ADD;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 0 6px 0">
+          <div class="arch-card dashed brand-pb" id="card-pb-ui"><div class="ac-tag tag-ui">PB Render</div><div class="ac-title">Editorial Layout</div><div class="ac-body">Large editorial imagery - mood board cards - full-bleed product shots - design consultation CTA - style tag chips - sophisticated copy</div><div class="ac-pattern">Tone: sophisticated. CTAs: "Explore the collection" not "Buy now". Generous whitespace. Serif accents in UI.</div></div>
+          <div class="arch-card dashed brand-pbk" id="card-pbk-ui"><div class="ac-tag tag-ui">PBK Render</div><div class="ac-title">Safety-First Layout</div><div class="ac-body">Safety badge chips - age-range filter pills - comparison table with certification column - registry checklist format - "grows with child" callout card</div><div class="ac-pattern">Tone: confident and clear. CTAs: "Add to registry" prominent. Safety info always visible without requiring a click.</div></div>
+          <div class="arch-card dashed brand-pbt" id="card-pbt-ui"><div class="ac-tag tag-ui">PBT Render</div><div class="ac-title">Compact Layout</div><div class="ac-body">Compact cards - style tag chips (aesthetic labels) - "shop the vibe" format - mood board first - budget filter prominent - shorter copy throughout</div><div class="ac-pattern">Tone: casual, direct. CTAs: visual-first, minimal text. No registry framing. Budget visibility is non-negotiable.</div></div>
+          <div class="arch-card"><div class="ac-tag tag-ui">Output Handling</div><div class="ac-title">Action Output + Carousel Display</div><div class="ac-body">Formats specialist output into brand-correct UI components. Carousels for product sets, single-card for detailed views, checklist format for registry. Visual display rules applied after every specialist action.</div><div class="ac-pattern"><strong>Post-action:</strong> Transforms raw API responses into carousel, grid, or list components per brand display rules.</div></div>
+        </div>
+        <div class="flow-layer-connector"><span class="flow-arrow">↓</span>renders to shopper - escalates when needed to</div>
+        <div class="flow-layer">
+          <div class="flow-layer-left"><span class="flow-layer-label">Exit</span></div>
+          <div class="flow-layer-right">
+            <div class="arch-card flow-row-expandable" onclick="toggleAccordion('acc-human')"><div class="ac-tag tag-human">Human handoff</div><div class="ac-title">Design consult - complex claims - auth failure - distress signal - explicit request<span class="accordion-chevron">›</span></div></div>
+          </div>
+        </div>
+        <div class="accordion-detail" id="acc-human" style="border-left-color:#BA7517">
+          <div class="card-grid">
+            <div class="arch-card"><div class="ac-tag tag-human">Trigger 1</div><div class="ac-title">Design Consultation Handoff</div><div class="ac-body">The Lightweight Design Agent's funnel always ends here for shoppers who engage deeply. Free human design consult is a PB brand differentiator. Agent pre-loads style preferences and shortlisted products.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-human">Trigger 2</div><div class="ac-title">Complex Warranty or Damage Claim</div><div class="ac-body">Furniture damage claims require judgment beyond agent scope - photo validation, policy exceptions, replacement logistics. Agent opens the case and pre-populates all fields. Human picks it up warm.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-human">Trigger 3</div><div class="ac-title">Auth Failure or Order Not Found</div><div class="ac-body">If identity can't be verified or order can't be located after two attempts, escalate immediately. Never loop the shopper in auth retry. Human can access verification tools the agent cannot.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-human">Trigger 4</div><div class="ac-title">Explicit Shopper Request</div><div class="ac-body">"I want to talk to a person" is always honored immediately. No retention attempt. Agent surfaces phone, in-store appointment option, or live chat queue with estimated wait time.</div></div>
+            <div class="arch-card"><div class="ac-tag tag-human">Trigger 5</div><div class="ac-title">Emotional Distress Signal</div><div class="ac-body">High-frustration language around a damaged or lost order. Agent acknowledges, de-escalates, and routes to human within 2 exchanges - doesn't try to resolve through more automation.</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('layerSections').innerHTML = html;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+  buildExampleList();
+  buildLayerNav();
+  buildLayerSections();
+  setLayer('overview');
+
+  // Keyboard support
+  document.getElementById('customUtt').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      analyzeCustom();
+    }
+  });
+});

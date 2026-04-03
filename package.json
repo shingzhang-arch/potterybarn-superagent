@@ -1,0 +1,9 @@
+{
+  "name": "pb-super-agent",
+  "version": "1.0.0",
+  "description": "PB Super Agent - Architecture Explorer",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "dev": "python3 -m http.server 8000"
+  }
+}
