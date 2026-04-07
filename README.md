@@ -21,6 +21,7 @@ npx http-server
 ## Features
 
 - **Interactive Architecture Explorer**: Visualize the complete multi-layer agent architecture
+- **Version Tabs**: Keep the original flow in `V1` and explore the refined data-first story in `V2`
 - **Intent Classification**: Real-time utterance analysis with brand detection and intent routing
 - **Example Utterances**: Pre-loaded examples demonstrating different routing scenarios
 - **11 Architecture Layers**: Explore each component in detail
@@ -41,6 +42,15 @@ npx http-server
 9. **Data Layer** - Shared sources and tools
 10. **UI / Render Layer** - Brand-specific display rules (NEW)
 11. **Human Escalation** - Designed exit points
+
+## V1 vs V2
+
+- **`V1`** preserves the original architecture view and emphasis.
+- **`V2`** reframes the story for non-technical audiences:
+  - clarifies agent vs sub-agent vs tool vs data source roles
+  - de-emphasizes brand detection as supporting context
+  - adds a visible tool layer with tool cards
+  - shows the `Make Shopping Easy` brand fork, including **Olive** as a recipe-capability example
 
 ## Usage
 

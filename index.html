@@ -76,6 +76,29 @@ header .subtitle {
 
 .brand-pills { display: flex; gap: 6px; margin-left: auto; align-items: center; }
 
+.version-tabs {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.version-tab {
+  border: 1px solid var(--border-med);
+  background: white;
+  color: var(--ink-muted);
+  border-radius: 16px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.version-tab.active {
+  background: var(--purple-light);
+  color: var(--purple);
+  border-color: #AFA9EC;
+}
+
 .brand-pill {
   font-size: 11px; font-weight: 500; padding: 3px 10px;
   border-radius: 20px; border: 1px solid;
@@ -344,6 +367,7 @@ header .subtitle {
 .arch-card.brand-pb  { border-top: 3px solid var(--pb); }
 .arch-card.brand-pbk { border-top: 3px solid var(--pbk); }
 .arch-card.brand-pbt { border-top: 3px solid var(--pbt); }
+.arch-card.brand-olive { border-top: 3px solid #5A7A3C; }
 .arch-card.dashed { border-style: dashed; border-width: 1.5px; }
 
 .ac-tag {
@@ -423,6 +447,10 @@ header .subtitle {
   border-left: 3px solid var(--purple);
   background: var(--cream);
   animation: signalPop 0.3s ease;
+}
+
+.signal-card.signal-secondary {
+  opacity: 0.78;
 }
 
 /* Pop animation for when values appear */
@@ -596,6 +624,10 @@ header .subtitle {
 <header>
   <h1>PB Super Agent</h1>
   <span class="subtitle">Architecture explorer - Orchestrator + specialist model</span>
+  <div class="version-tabs">
+    <button class="version-tab" data-version="v1" onclick="setVersion('v1')">V1</button>
+    <button class="version-tab active" data-version="v2" onclick="setVersion('v2')">V2</button>
+  </div>
   <div class="brand-pills">
     <span class="brand-pill pill-pb">Pottery Barn</span>
     <span class="brand-pill pill-pbk">PB Kids</span>

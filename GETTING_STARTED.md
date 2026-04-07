@@ -30,6 +30,7 @@ A fully interactive, beautiful web application showcasing Pottery Barn's super a
 
 ### Features
 - Interactive architecture explorer with 11 distinct layers
+- Top-level `V1` / `V2` tabs to compare the original and refined narratives
 - Real-time utterance analysis and intent classification
 - 5 pre-loaded example utterances demonstrating different routing scenarios
 - Brand detection (PB, PBK, PBT) with confidence scores
@@ -68,6 +69,9 @@ A fully interactive, beautiful web application showcasing Pottery Barn's super a
    - Routing destination with confidence
    - Visual highlighting of relevant architecture component
 3. **Explore Layers**: Click on any layer in the navigation to view detailed explanations
+4. **Compare Versions**:
+   - Open `V1` to keep the original architecture explanation
+   - Open `V2` for the data-first view with explicit tool cards and brand divergence (`Make Shopping Easy` + Olive recipes)
 
 ## Example Utterances
 

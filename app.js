@@ -10,59 +10,77 @@ const UTTERANCES = [
     intent: 'product comparison', intentConf: 95,
     signals: [{ label: 'PB (98%)', cls: 'chip-brand' }, { label: 'product comparison', cls: 'chip-intent' }],
     routing: { specialist: 'Discovery', subagent: 'Help me choose', confidence: 94 },
-    routingReason: 'Two named SKUs + "which is better" = product comparison. Routes to Discovery - Help Me Choose.',
+    routingReason: 'Two named SKUs + "which is better" = comparison. Uses shared Discovery sub-agent.',
     highlightLayer: 'discovery', highlightCard: 'choose',
-    highlights: { brand: 'pb-brand', specialist: 'spec-discovery', subagent: 'choose', ui: 'pb-ui' }
+    highlights: { specialist: 'spec-discovery', subagent: 'choose', ui: 'pb-ui' }
   },
   {
     id: 'u2',
-    label: 'Baby shower gift',
-    text: '"I need a gift for my sister\'s baby shower - budget around $150"',
-    brand: 'PBK', brandConf: 88,
-    intent: 'gift discovery', intentConf: 91,
-    signals: [{ label: 'PBK (88%)', cls: 'chip-brand-pbk' }, { label: 'gift discovery', cls: 'chip-intent' }],
-    routing: { specialist: 'Discovery', subagent: 'Gifting guide', confidence: 90 },
-    routingReason: 'Life-event signal + explicit budget. Brand resolved to PBK. Routes to Discovery - Gifting Guide.',
-    highlightLayer: 'discovery', highlightCard: 'gift',
-    highlights: { brand: 'pbk', specialist: 'spec-discovery', subagent: 'gift', ui: 'pbk-ui' }
+    label: 'Williams-Sonoma menu planning',
+    text: '"I am on Williams-Sonoma and need a 3-course menu for six, mostly vegetarian."',
+    brand: 'WS', brandConf: 97,
+    intent: 'recipe/menu planning', intentConf: 95,
+    signals: [{ label: 'WS (97%)', cls: 'chip-brand' }, { label: 'recipe/menu planning', cls: 'chip-intent' }],
+    routing: { specialist: 'Discovery', subagent: 'Recipe / Menu', confidence: 95 },
+    routingReason: 'WS context + recipe/menu intent unlocks the WS-only Discovery sub-agent.',
+    highlightLayer: 'discovery', highlightCard: 'recipe-menu',
+    highlights: { specialist: 'spec-discovery', subagent: 'recipe-menu', ui: 'pb-ui' }
   },
   {
     id: 'u3',
-    label: 'Lost couch order',
-    text: '"Where is my order? I was supposed to get my couch last Tuesday."',
-    brand: 'PB', brandConf: 80,
-    intent: 'order anxiety', intentConf: 99,
-    signals: [{ label: 'PB (80%)', cls: 'chip-brand' }, { label: 'order anxiety', cls: 'chip-intent' }, { label: 'auth required', cls: 'chip-auth' }],
-    routing: { specialist: 'Order tracking', subagent: 'Auth - Order status', confidence: 99 },
-    routingReason: '"Where is my order" is unambiguous post-purchase signal. Auth required. Routes to Order Tracking.',
-    highlightLayer: 'ordertracking', highlightCard: 'auth',
-    highlights: { brand: 'pb-brand', specialist: 'spec-ordertracking', subagent: 'auth', ui: 'pb-ui' }
+    label: 'Williams-Sonoma cookware comparison',
+    text: '"On Williams-Sonoma, which pan is better for searing fish: stainless or cast iron?"',
+    brand: 'WS', brandConf: 95,
+    intent: 'product comparison', intentConf: 92,
+    signals: [{ label: 'WS (95%)', cls: 'chip-brand' }, { label: 'product comparison', cls: 'chip-intent' }],
+    routing: { specialist: 'Discovery', subagent: 'Help me choose', confidence: 92 },
+    routingReason: 'WS brand with comparison intent uses shared Help Me Choose; tools/data swap to cookware sources.',
+    highlightLayer: 'discovery', highlightCard: 'choose',
+    highlights: { specialist: 'spec-discovery', subagent: 'choose', ui: 'pb-ui' }
   },
   {
     id: 'u4',
-    label: 'Teen room design',
-    text: '"Can you help me design my teen\'s room? She loves coastal boho."',
-    brand: 'PBT', brandConf: 92,
-    intent: 'design inspiration', intentConf: 88,
-    signals: [{ label: 'PBT (92%)', cls: 'chip-brand-pbt' }, { label: 'design exploration', cls: 'chip-intent' }],
-    routing: { specialist: 'Discovery', subagent: 'Lightweight design agent', confidence: 88 },
-    routingReason: 'Style-led open exploration. "Teen\'s room" resolves to PBT. Routes to Discovery - Design Agent.',
-    highlightLayer: 'discovery', highlightCard: 'design',
-    highlights: { brand: 'pbt', specialist: 'spec-discovery', subagent: 'design', ui: 'pbt-ui' }
+    label: 'Williams-Sonoma kitchen starter',
+    text: '"I just moved and need kitchen essentials under $400 on Williams-Sonoma."',
+    brand: 'WS', brandConf: 96,
+    intent: 'starter essentials', intentConf: 90,
+    signals: [{ label: 'WS (96%)', cls: 'chip-brand' }, { label: 'starter essentials', cls: 'chip-intent' }],
+    routing: { specialist: 'Discovery', subagent: 'Make shopping easy', confidence: 89 },
+    routingReason: 'Shared Make Shopping Easy flow applied to WS context (kitchen starter set).',
+    highlightLayer: 'discovery', highlightCard: 'easy',
+    highlights: { specialist: 'spec-discovery', subagent: 'easy', ui: 'pb-ui' }
   },
   {
     id: 'u5',
-    label: 'Return a rug',
-    text: '"I want to return my rug - it looks nothing like it did online."',
-    brand: 'PB', brandConf: 85,
-    intent: 'return intent', intentConf: 96,
-    signals: [{ label: 'PB (85%)', cls: 'chip-brand' }, { label: 'return intent', cls: 'chip-intent' }, { label: 'auth required', cls: 'chip-auth' }],
-    routing: { specialist: 'Post-order', subagent: 'Return flow', confidence: 96 },
-    routingReason: 'Explicit return intent + emotional signal. Routes to Post-Order - Return.',
-    highlightLayer: 'postorder', highlightCard: 'return',
-    highlights: { brand: 'pb-brand', specialist: 'spec-postorder', subagent: 'return', ui: 'pb-ui' }
+    label: 'West Elm style pairing',
+    text: '"For west elm, can you pair this sofa with a rug and side table?"',
+    brand: 'WSE', brandConf: 90,
+    intent: 'style pairing', intentConf: 87,
+    signals: [{ label: 'west elm (90%)', cls: 'chip-brand' }, { label: 'style pairing', cls: 'chip-intent' }],
+    routing: { specialist: 'Discovery', subagent: 'Pair it for me', confidence: 86 },
+    routingReason: 'Umbrella-brand detection routes to shared Pair It For Me sub-agent.',
+    highlightLayer: 'discovery', highlightCard: 'pair',
+    highlights: { specialist: 'spec-discovery', subagent: 'pair', ui: 'pb-ui' }
   }
 ];
+
+const BRAND_RULES = {
+  PB: { label: 'Pottery Barn', cls: 'chip-brand' },
+  PBK: { label: 'PB Kids', cls: 'chip-brand-pbk' },
+  PBT: { label: 'PB Teen', cls: 'chip-brand-pbt' },
+  WS: { label: 'Williams-Sonoma', cls: 'chip-brand' },
+  WSE: { label: 'west elm', cls: 'chip-brand' },
+  MG: { label: 'Mark and Graham', cls: 'chip-brand' }
+};
+
+const BRAND_CAPABILITIES = {
+  PB: { sharedDiscovery: true, wsRecipeMenu: false },
+  PBK: { sharedDiscovery: true, wsRecipeMenu: false },
+  PBT: { sharedDiscovery: true, wsRecipeMenu: false },
+  WS: { sharedDiscovery: true, wsRecipeMenu: true },
+  WSE: { sharedDiscovery: true, wsRecipeMenu: false },
+  MG: { sharedDiscovery: true, wsRecipeMenu: false }
+};
 
 const LAYERS = [
   { id: 'overview', label: 'Full architecture', sub: 'All layers at a glance', dot: '#888780' },
@@ -80,6 +98,7 @@ const LAYERS = [
 
 let activeLayer = 'overview';
 let activeUtt = null;
+let activeVersion = 'v2';
 
 let conversationTurns = [];
 let activeTurnIndex = -1;
@@ -87,7 +106,7 @@ let activeTurnIndex = -1;
 const CARD_TO_ACCORDION = {
   'auth': 'acc-ordertracking', 'orderstatus': 'acc-ordertracking',
   'easy': 'acc-discovery', 'choose': 'acc-discovery', 'pair': 'acc-discovery',
-  'design': 'acc-discovery', 'gift': 'acc-discovery',
+  'design': 'acc-discovery', 'gift': 'acc-discovery', 'recipe-menu': 'acc-discovery',
   'pip': 'acc-faq', 'policy': 'acc-faq', 'promo': 'acc-faq', 'loyalty': 'acc-faq',
   'cart': 'acc-checkout', 'viewcart': 'acc-checkout',
   'cancel': 'acc-postorder', 'return': 'acc-postorder',
@@ -95,9 +114,19 @@ const CARD_TO_ACCORDION = {
   'pb-ui': 'acc-ui', 'pbk-ui': 'acc-ui', 'pbt-ui': 'acc-ui',
 };
 
+function detectBrand(t) {
+  if (/williams.?sonoma|\bws\b|olive/i.test(t)) return { brand: 'WS', brandConf: 95, brandCls: BRAND_RULES.WS.cls };
+  if (/west elm|\bwse\b/.test(t)) return { brand: 'WSE', brandConf: 90, brandCls: BRAND_RULES.WSE.cls };
+  if (/mark and graham|\bmg\b/.test(t)) return { brand: 'MG', brandConf: 90, brandCls: BRAND_RULES.MG.cls };
+  if (/teen|dorm|pbt|teenager/i.test(t)) return { brand: 'PBT', brandConf: 90, brandCls: BRAND_RULES.PBT.cls };
+  if (/baby|nursery|crib|newborn|pbk|shower/i.test(t)) return { brand: 'PBK', brandConf: 88, brandCls: BRAND_RULES.PBK.cls };
+  return { brand: 'PB', brandConf: 80, brandCls: BRAND_RULES.PB.cls };
+}
+
 function classifyUtterance(text) {
   const t = text.toLowerCase();
-  let brand = 'PB', brandConf = 75, brandCls = 'chip-brand';
+  const brandMatch = detectBrand(t);
+  let brand = brandMatch.brand, brandConf = brandMatch.brandConf, brandCls = brandMatch.brandCls;
   let intent = 'product browsing', intentConf = 70;
   let specialist = 'Discovery', subagent = 'Make shopping easy', confidence = 72;
   let reason = '';
@@ -105,17 +134,18 @@ function classifyUtterance(text) {
   let auth = '';
   const signals = [];
 
-  if (/teen|dorm|pbt|teenager/i.test(t)) {
-    brand = 'PBT'; brandConf = 90; brandCls = 'chip-brand-pbt';
-  } else if (/baby|nursery|crib|newborn|pbk|shower/i.test(t)) {
-    brand = 'PBK'; brandConf = 88; brandCls = 'chip-brand-pbk';
-  } else { brandConf = 80; }
+  const brandCaps = BRAND_CAPABILITIES[brand] || { sharedDiscovery: true, wsRecipeMenu: false };
 
   if (/where.*order|track.*order|when.*deliver|order.*status|where is my|hasn't arrived/i.test(t)) {
     intent = 'order anxiety'; intentConf = 98; auth = 'auth required';
     specialist = 'Order tracking'; subagent = 'Auth - Order status'; confidence = 97;
     reason = '"Where is my order" pattern detected. Auth required. Routes to Order Tracking.';
     highlightLayer = 'ordertracking'; highlightCard = 'auth';
+  } else if (brandCaps.wsRecipeMenu && /recipe|menu|ingredients|dinner party|meal plan|olive agent|what should i cook|cook tonight/i.test(t)) {
+    intent = 'recipe/menu planning'; intentConf = 95;
+    specialist = 'Discovery'; subagent = 'Recipe / Menu'; confidence = 94;
+    reason = 'WS context with recipe/menu language unlocks WS-only Recipe / Menu sub-agent.';
+    highlightLayer = 'discovery'; highlightCard = 'recipe-menu';
   } else if (/cancel/i.test(t)) {
     intent = 'cancel intent'; intentConf = 96; auth = 'required';
     specialist = 'Post-order'; subagent = 'Cancel'; confidence = 94;
@@ -139,7 +169,7 @@ function classifyUtterance(text) {
   } else if (/pair|match|goes with|complement|rug.*sofa|sofa.*rug|complete the|look together/i.test(t)) {
     intent = 'style pairing'; intentConf = 88;
     specialist = 'Discovery'; subagent = 'Pair it for me'; confidence = 86;
-    reason = 'Pairing intent detected. Routes to Discovery - Pair It For Me.';
+    reason = 'Pairing intent detected. Routes to shared Discovery - Pair It For Me.';
     highlightLayer = 'discovery'; highlightCard = 'pair';
   } else if (/gift|shower|birthday|housewarming|for someone/i.test(t)) {
     intent = 'gift discovery'; intentConf = 92;
@@ -154,7 +184,7 @@ function classifyUtterance(text) {
   } else if (/design|decor|style|mood board|aesthetic|coastal|boho|farmhouse/i.test(t)) {
     intent = 'design inspiration'; intentConf = 87;
     specialist = 'Discovery'; subagent = 'Lightweight design agent'; confidence = 85;
-    reason = 'Style-led exploration detected. Routes to Discovery - Design Agent.';
+    reason = 'Style-led exploration detected. Routes to shared Discovery - Lightweight Design Agent.';
     highlightLayer = 'discovery'; highlightCard = 'design';
   } else if (/policy|return policy|how long|ship|deliver|assembly|white.glove|monogram|how does.*work/i.test(t)) {
     intent = 'policy/faq'; intentConf = 89;
@@ -176,14 +206,17 @@ function classifyUtterance(text) {
     specialist = 'FAQ'; subagent = 'The Key loyalty'; confidence = 91;
     reason = 'Loyalty program question detected. Routes to FAQ - The Key.';
     highlightLayer = 'faq'; highlightCard = 'loyalty';
-  } else if (/new|moving|first|just moved|setting up|starting from scratch|nursery|dorm room|first apartment/i.test(t)) {
+  } else if (/new|moving|first|just moved|setting up|starting from scratch|nursery|dorm room|first apartment|kitchen setup|starter kitchen|essentials/i.test(t)) {
     intent = 'life transition'; intentConf = 82;
     specialist = 'Discovery'; subagent = 'Make shopping easy'; confidence = 80;
-    reason = 'Life-transition language detected. Routes to Discovery - Make Shopping Easy.';
+    reason = brand === 'WS'
+      ? 'Starter setup intent on WS. Routes to shared Discovery - Make Shopping Easy with kitchenware-focused tools.'
+      : 'Starter setup intent detected. Routes to shared Discovery - Make Shopping Easy.';
     highlightLayer = 'discovery'; highlightCard = 'easy';
   }
 
-  signals.push({ label: `${brand} (${brandConf}%)`, cls: brandCls });
+  const brandLabel = BRAND_RULES[brand] ? BRAND_RULES[brand].label : brand;
+  signals.push({ label: `${brandLabel} (${brandConf}%)`, cls: brandCls });
   signals.push({ label: intent, cls: 'chip-intent' });
   if (auth) signals.push({ label: auth, cls: 'chip-auth' });
 
@@ -191,10 +224,6 @@ function classifyUtterance(text) {
 
   // Derive highlights from brand and highlightCard
   let highlights = {};
-  if (brand === 'PB') highlights.brand = 'pb-brand';
-  else if (brand === 'PBK') highlights.brand = 'pbk';
-  else if (brand === 'PBT') highlights.brand = 'pbt';
-  
   if (specialist === 'Discovery') highlights.specialist = 'spec-discovery';
   else if (specialist === 'FAQ') highlights.specialist = 'spec-faq';
   else if (specialist === 'Checkout') highlights.specialist = 'spec-checkout';
@@ -206,6 +235,7 @@ function classifyUtterance(text) {
   if (brand === 'PB') highlights.ui = 'pb-ui';
   else if (brand === 'PBK') highlights.ui = 'pbk-ui';
   else if (brand === 'PBT') highlights.ui = 'pbt-ui';
+  else highlights.ui = 'pb-ui';
 
   return {
     id: 'custom', label: 'Custom utterance', text: `"${text}"`,
@@ -331,6 +361,18 @@ function toggleToolDetail(event, id) {
   }
 }
 
+function setVersion(version) {
+  if (version !== 'v1' && version !== 'v2') return;
+  activeVersion = version;
+  document.querySelectorAll('.version-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.version === version);
+  });
+  buildLayerSections();
+  if (activeUtt) {
+    setTimeout(() => activatePath(activeUtt), 50);
+  }
+}
+
 function closeAllAccordions() {
   document.querySelectorAll('.accordion-detail.open').forEach(detail => {
     detail.classList.remove('open');
@@ -345,13 +387,15 @@ function renderOrchSignals(utt) {
   // Brand detection
   const brandVal = document.getElementById('sigval-brand');
   if (brandVal) {
-    const brandNames = { PB: 'Pottery Barn', PBK: 'PB Kids', PBT: 'PB Teen' };
+    const brandNames = { PB: 'Pottery Barn', PBK: 'PB Kids', PBT: 'PB Teen', WS: 'Williams-Sonoma', WSE: 'west elm', MG: 'Mark and Graham' };
     brandVal.textContent = brandNames[utt.brand] || utt.brand;
     brandVal.className = 'signal-value visible brand-' + utt.brand.toLowerCase();
     document.getElementById('sig-brand').classList.add('resolved');
   }
   document.querySelector('#sig-brand .signal-body').textContent =
-    `${utt.brandConf}% confidence — resolved from shopper message and domain signals.`;
+    activeVersion === 'v2'
+      ? `${utt.brandConf}% confidence. Applied after routing to select brand tone, policy framing, and capability set.`
+      : `${utt.brandConf}% confidence — resolved from shopper message and domain signals.`;
 
   // Intent classification
   const intentVal = document.getElementById('sigval-intent');
@@ -371,7 +415,9 @@ function renderOrchSignals(utt) {
     document.getElementById('sig-domain').classList.add('resolved');
   }
   document.querySelector('#sig-domain .signal-body').textContent =
-    `Routes to ${utt.routing.specialist}. Sub-agent: ${utt.routing.subagent}.`;
+    activeVersion === 'v2'
+      ? `Primary job routes to ${utt.routing.specialist}. Then the selected sub-agent handles execution.`
+      : `Routes to ${utt.routing.specialist}. Sub-agent: ${utt.routing.subagent}.`;
 
   // Auth state
   const authRequired = utt.signals.some(s => s.label === 'auth required');
@@ -449,6 +495,14 @@ function activatePath(utt) {
     subCard.classList.add('highlighted');
     const accId = CARD_TO_ACCORDION[utt.highlights.subagent];
     if (accId) toggleAccordion(accId);
+    if (activeVersion === 'v2') {
+      document.querySelectorAll('.tools-detail.open').forEach(d => d.classList.remove('open'));
+      document.querySelectorAll('.tools-expand-icon.open').forEach(i => i.classList.remove('open'));
+      const firstTool = subCard.querySelector('.tools-detail');
+      const firstToolIcon = subCard.querySelector('.tools-expand-icon');
+      if (firstTool) firstTool.classList.add('open');
+      if (firstToolIcon) firstToolIcon.classList.add('open');
+    }
     subCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 
@@ -678,6 +732,171 @@ function buildLayerSections() {
     </div>
   `;
   document.getElementById('layerSections').innerHTML = html;
+  if (activeVersion === 'v2') {
+    applyV2Transformations();
+  }
+}
+
+function applyV2Transformations() {
+  const title = document.querySelector('#sec-overview .layer-header h2');
+  if (title) title.textContent = 'Full architecture - V2 (data-first view)';
+
+  const flow = document.querySelector('#sec-overview .overview-flow');
+  if (flow && !document.getElementById('v2-explainer')) {
+    const explainer = document.createElement('div');
+    explainer.id = 'v2-explainer';
+    explainer.className = 'layer-description';
+    explainer.style.borderLeftColor = '#534AB7';
+    explainer.textContent = 'V2 shows this in plain terms: the orchestrator routes the request, shared or brand-specific discovery sub-agents execute, tools perform actions, and data sources provide the facts.';
+    flow.parentNode.insertBefore(explainer, flow);
+  }
+
+  const connectors = Array.from(document.querySelectorAll('.flow-layer-connector'));
+  const levelOneConnector = connectors.find(conn => conn.textContent.toLowerCase().includes('brand-wrapped request'));
+  if (levelOneConnector) {
+    levelOneConnector.innerHTML = '<span class="flow-arrow">↓</span>routes request to the right specialist';
+  }
+
+  const orchestratorCard = document.getElementById('card-orch');
+  if (orchestratorCard) {
+    const body = orchestratorCard.querySelector('.ac-body');
+    if (body) {
+      body.textContent = 'Makes routing decisions only. It reads intent + context, selects a specialist path, and determines whether shared or brand-specific sub-agents are eligible.';
+    }
+  }
+
+  const sigGrid = document.querySelector('#acc-orchestrator .signals-grid');
+  if (sigGrid) {
+    const signalOrder = ['sig-intent', 'sig-domain', 'sig-session', 'sig-auth', 'sig-multi', 'sig-guardrails', 'sig-brand'];
+    signalOrder.forEach((id, index) => {
+      const card = document.getElementById(id);
+      if (!card) return;
+      sigGrid.appendChild(card);
+      const num = card.querySelector('.signal-num');
+      if (num) num.textContent = String(index + 1).padStart(2, '0');
+    });
+  }
+  const brandSignal = document.getElementById('sig-brand');
+  if (brandSignal) {
+    const sigTitle = brandSignal.querySelector('.signal-title');
+    const sigBody = brandSignal.querySelector('.signal-body');
+    if (sigTitle) sigTitle.textContent = 'Brand Context';
+    if (sigBody) sigBody.textContent = 'Used to determine which sub-agents and tools are available for this brand.';
+    brandSignal.classList.add('signal-secondary');
+  }
+  const domainSignal = document.getElementById('sig-domain');
+  if (domainSignal) {
+    const t = domainSignal.querySelector('.signal-title');
+    if (t) t.textContent = 'Job To Be Done';
+  }
+
+  // Remove standalone Brand layer in V2; brand differences are shown inside specialists/tools/data.
+  const brandAccordion = document.getElementById('acc-brand');
+  if (brandAccordion) {
+    const brandLayerRow = brandAccordion.previousElementSibling;
+    const brandConnectorRow = brandLayerRow ? brandLayerRow.previousElementSibling : null;
+    brandAccordion.remove();
+    if (brandLayerRow) brandLayerRow.remove();
+    if (brandConnectorRow) brandConnectorRow.remove();
+  }
+
+  const specialistCards = document.querySelectorAll('#card-spec-discovery, #card-spec-faq, #card-spec-checkout, #card-spec-ordertracking, #card-spec-postorder');
+  specialistCards.forEach(card => {
+    const tag = card.querySelector('.ac-tag');
+    if (tag) tag.remove();
+  });
+
+  const easyCard = document.getElementById('card-easy');
+  if (easyCard) {
+    const easyBody = easyCard.querySelector('.ac-body');
+    const easyPattern = easyCard.querySelector('.ac-pattern');
+    const easyDetails = easyCard.querySelector('#tools-easy');
+    if (easyBody) {
+      easyBody.textContent = 'Shared discovery flow for “help me get started.” Builds a starter plan and essentials list for the brand context (home setup or kitchen setup).';
+    }
+    if (easyPattern) {
+      easyPattern.innerHTML = '<strong>Tools:</strong> Search_For_Products · Get Product Details · Answers with Knowledge <span class="tools-expand-icon" onclick="toggleToolDetail(event, \'tools-easy\')">▼</span>';
+    }
+    if (easyDetails) {
+      easyDetails.innerHTML = '<div class="tool-item"><strong>Search_For_Products</strong><br>Input: shopper goal, constraints, budget | Output: starter essentials list | Sources: Brand catalog</div><div class="tool-item"><strong>Get Product Details</strong><br>Input: SKU | Output: specs + price + availability | Sources: Brand catalog</div><div class="tool-item"><strong>Answers with Knowledge</strong><br>Input: follow-up question | Output: grounded guidance | Sources: Catalog + policy + content</div>';
+    }
+  }
+
+  const chooseBody = document.querySelector('#card-choose .ac-body');
+  if (chooseBody) {
+    chooseBody.textContent = 'Clarifies shopper constraints, filters options, and runs side-by-side comparisons. Shared comparison pattern across brands.';
+  }
+  const pairBody = document.querySelector('#card-pair .ac-body');
+  if (pairBody) {
+    pairBody.textContent = 'Finds complementary items around an anchor product. Shared pairing pattern across brands (room, table, or kitchen contexts).';
+  }
+  const designBody = document.querySelector('#card-design .ac-body');
+  if (designBody) {
+    designBody.textContent = 'Open-ended inspiration flow that can surface room ideas, table styling, or kitchen setup guidance based on brand context.';
+  }
+  const giftBody = document.querySelector('#card-gift .ac-body');
+  if (giftBody) {
+    giftBody.textContent = 'Occasion + budget guided discovery pattern. Shared across brands with brand-specific catalog, registry, or gifting rules.';
+  }
+
+  const discoveryGrid = document.querySelector('#acc-discovery .card-grid');
+  if (discoveryGrid && !document.getElementById('card-recipe-menu')) {
+    const wsRecipe = document.createElement('div');
+    wsRecipe.className = 'arch-card';
+    wsRecipe.id = 'card-recipe-menu';
+    wsRecipe.innerHTML = '<div class="ac-tag tag-worker">Sub-agent F (WS only)</div><div class="ac-title">Recipe / Menu</div><div class="ac-body">Brand-specific discovery path for Williams-Sonoma only. Plans meals, recipes, and ingredient bundles based on dietary needs and prep constraints.</div><div class="ac-pattern"><strong>Tools:</strong> Search_Recipes · Build_Menu · Pantry_Check · Build_Shopping_List <span class="tools-expand-icon" onclick="toggleToolDetail(event, \'tools-recipe-menu\')">▼</span></div><div id="tools-recipe-menu" class="tools-detail"><div class="tool-item"><strong>Search_Recipes</strong><br>Input: cuisine, dietary filters, prep time | Output: ranked recipes | Sources: Recipe graph</div><div class="tool-item"><strong>Build_Menu</strong><br>Input: selected recipes, servings | Output: full menu plan | Sources: Recipe graph</div><div class="tool-item"><strong>Pantry_Check</strong><br>Input: pantry items | Output: available vs missing ingredients | Sources: Pantry profile</div><div class="tool-item"><strong>Build_Shopping_List</strong><br>Input: missing ingredients | Output: purchasable list + substitutions | Sources: Grocery + cookware catalog</div></div>';
+    discoveryGrid.appendChild(wsRecipe);
+  }
+  if (discoveryGrid && !document.getElementById('v2-shared-note')) {
+    const note = document.createElement('div');
+    note.id = 'v2-shared-note';
+    note.className = 'arch-card';
+    note.style.gridColumn = '1 / -1';
+    note.innerHTML = '<div class="ac-tag tag-data">Routing model</div><div class="ac-title">Shared vs brand-specific Discovery sub-agents</div><div class="ac-body">Shared across brands: Make Shopping Easy, Help Me Choose, Pair It For Me, Lightweight Design Agent. Brand-specific example: Recipe / Menu (Williams-Sonoma only). This extends to umbrella brands like west elm and Mark and Graham by enabling shared and/or brand-specific sub-agent sets.</div>';
+    discoveryGrid.appendChild(note);
+  }
+
+  const dataTitle = document.querySelector('#acc-data .flow-layer-right .ac-title');
+  if (dataTitle) {
+    dataTitle.textContent = 'Data sources (tools read from these systems)';
+  }
+  const dataCards = document.querySelectorAll('#acc-data .arch-card');
+  if (dataCards.length > 0) {
+    dataCards[0].querySelector('.ac-body').textContent = 'General product catalog used by shared discovery sub-agents across brands.';
+    dataCards[6].querySelector('.ac-title').textContent = 'Recipe Graph (Williams-Sonoma)';
+    dataCards[6].querySelector('.ac-body').textContent = 'Recipes, cuisines, prep times, and ingredient mappings used by the WS-only Recipe / Menu sub-agent.';
+    dataCards[8].querySelector('.ac-title').textContent = 'Kitchen + Cookware Catalog (Williams-Sonoma)';
+    dataCards[8].querySelector('.ac-body').textContent = 'Cookware and kitchen tools used when recipe/menu flows recommend supporting products.';
+  }
+
+  const uiHeader = document.querySelector('#acc-ui').previousElementSibling;
+  if (uiHeader) {
+    const titleNode = uiHeader.querySelector('.ac-title');
+    const bodyNode = uiHeader.querySelector('.ac-body');
+    if (titleNode) titleNode.textContent = 'Shopper-facing output layer';
+    if (bodyNode) bodyNode.textContent = 'Turns specialist output into the final response format (cards, comparisons, CTAs) for each brand.';
+  }
+
+  const humanHeader = document.querySelector('#acc-human').previousElementSibling;
+  if (humanHeader) {
+    const titleNode = humanHeader.querySelector('.ac-title');
+    if (titleNode) titleNode.textContent = 'Targeted human handoff (specific intents only)';
+  }
+  const humanGrid = document.querySelector('#acc-human .card-grid');
+  if (humanGrid) {
+    humanGrid.innerHTML = `
+      <div class="arch-card"><div class="ac-tag tag-human">Trigger</div><div class="ac-title">Design consultation requested</div><div class="ac-body">Only escalates when shopper explicitly wants specialist design help or design confidence remains low after guided options.</div></div>
+      <div class="arch-card"><div class="ac-tag tag-human">Trigger</div><div class="ac-title">High-friction service exception</div><div class="ac-body">Escalates only for complex claims or service exceptions where policy judgment is required.</div></div>
+    `;
+  }
+
+  // In V2, tools are contextual inside sub-agents; no standalone tool layer.
+  document.querySelectorAll('#acc-discovery .tools-detail').forEach(detail => {
+    detail.classList.remove('open');
+  });
+  document.querySelectorAll('.tools-expand-icon.open').forEach(icon => {
+    icon.classList.remove('open');
+  });
 }
 
 // Initialize on page load
@@ -685,6 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
   buildExampleList();
   buildLayerNav();
   buildLayerSections();
+  setVersion('v2');
   setLayer('overview');
 
   // Keyboard support
