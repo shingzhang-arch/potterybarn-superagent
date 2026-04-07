@@ -363,6 +363,14 @@ header .subtitle {
   box-shadow: 0 0 0 3px rgba(83,74,183,0.12);
 }
 .arch-card.path-active .ac-title { color: #2D2780; }
+.arch-card.manual-focus {
+  border-color: #7A73D2;
+  box-shadow: 0 0 0 2px rgba(83,74,183,0.16);
+}
+
+.arch-card[id^="card-"] {
+  cursor: pointer;
+}
 
 .arch-card.brand-pb  { border-top: 3px solid var(--pb); }
 .arch-card.brand-pbk { border-top: 3px solid var(--pbk); }
@@ -497,6 +505,23 @@ header .subtitle {
 }
 
 .accordion-open .accordion-chevron { transform: rotate(90deg); }
+
+/* Discovery spacing fix: keep Level 1 row and first sub-agent separated */
+#level1-specialists-row {
+  margin-bottom: 24px;
+}
+#acc-discovery {
+  position: relative;
+  z-index: 1;
+}
+#acc-discovery.open {
+  margin-top: 20px;
+  padding-top: 28px;
+  overflow: visible;
+}
+#acc-discovery.open .card-grid {
+  padding-top: 4px;
+}
 
 .tools-detail {
   background: var(--cream-dark);
