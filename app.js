@@ -115,7 +115,7 @@ const BRAND_CAPABILITIES = {
 
 const LAYERS = [
   { id: 'overview', label: 'Full architecture', sub: 'All layers at a glance', dot: '#888780' },
-  { id: 'orchestrator', label: 'Orchestrator', sub: 'Level 0 - intent + routing', dot: '#534AB7' },
+  { id: 'orchestrator', label: 'Reasoning Engine', sub: 'Built-in reasoning - intent + routing', dot: '#534AB7' },
   { id: 'brand', label: 'Brand layer', sub: 'Persona injection - NEW', dot: '#D4537E', isNew: true },
   { id: 'discovery', label: 'Discovery specialist', sub: 'Level 1 - pre-purchase', dot: '#1D9E75' },
   { id: 'faq', label: 'FAQ specialist', sub: 'Level 1 - knowledge Q&A', dot: '#1D9E75' },
@@ -526,7 +526,7 @@ function activatePath(utt) {
 
   if (!utt.highlights) return;
 
-  // 2. Orchestrator — always path-active + open its accordion + update signals
+  // 2. Reasoning Engine — always path-active + open its accordion + update signals
   const orchCard = document.getElementById('card-orch');
   if (orchCard) {
     orchCard.classList.add('path-active');
@@ -670,7 +670,7 @@ function buildLayerSections() {
         <div class="flow-layer">
           <div class="flow-layer-left"><span class="flow-layer-label">Level 0</span></div>
           <div class="flow-layer-right">
-            <div class="arch-card flow-row-expandable" id="card-orch" onclick="toggleAccordion('acc-orchestrator')"><div class="ac-tag tag-orch">Orchestrator</div><div class="ac-title">Intent classifier + router - routes only, never executes<span class="accordion-chevron">›</span></div><div class="ac-body">Brand detection - intent classification - domain - auth state - session context carry</div></div>
+            <div class="arch-card flow-row-expandable" id="card-orch" onclick="toggleAccordion('acc-orchestrator')"><div class="ac-tag tag-orch">Reasoning Engine</div><div class="ac-title">Built-in reasoning + routing<span class="accordion-chevron">›</span></div><div class="ac-body">Configured logic evaluates brand context, intent, auth state, and session conditions to choose the next specialist path.</div></div>
           </div>
         </div>
         <div class="accordion-detail" id="acc-orchestrator" style="border-left-color:#534AB7">
@@ -820,7 +820,7 @@ function applyV2Transformations() {
     explainer.id = 'v2-explainer';
     explainer.className = 'layer-description';
     explainer.style.borderLeftColor = '#534AB7';
-    explainer.textContent = 'V2 shows this in plain terms: the orchestrator starts with entry-brand context, checks shopper intent, then either stays on that brand path or reroutes when intent clearly belongs to another brand (for example, recipe/menu -> Williams-Sonoma).';
+    explainer.textContent = 'V2 shows this in plain terms: the reasoning engine (configured inside the agent) starts with entry-brand context, checks shopper intent, then either stays on that brand path or reroutes when intent clearly belongs to another brand (for example, recipe/menu -> Williams-Sonoma).';
     flow.parentNode.insertBefore(explainer, flow);
   }
 
@@ -834,7 +834,7 @@ function applyV2Transformations() {
   if (orchestratorCard) {
     const body = orchestratorCard.querySelector('.ac-body');
     if (body) {
-      body.textContent = 'Makes routing decisions only. It reads intent + entry-brand context, selects a specialist path, and decides whether to stay in-brand or reroute to a brand-specific path.';
+      body.textContent = 'Evaluates configured conditions (intent, entry-brand context, auth, session) to select a specialist path and decide whether to stay in-brand or reroute.';
     }
   }
 
